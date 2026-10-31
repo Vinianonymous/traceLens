@@ -1,6 +1,7 @@
 """Deterministic, in-memory demo target for explicitly initiated requests."""
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 app = FastAPI(title="TraceLens Demo API", version="0.1.0")
@@ -29,3 +30,9 @@ def list_items() -> list[Item]:
 def create_item(item: NewItem) -> Item:
     # Deliberately stateless: repeated examples do not modify demo data.
     return Item(id=3, name=item.name)
+
+
+@app.get("/redirect")
+def redirect() -> RedirectResponse:
+    """Safe fixture to verify even same-origin redirects are refused."""
+    return RedirectResponse(url="http://127.0.0.1:8001/items", status_code=302)

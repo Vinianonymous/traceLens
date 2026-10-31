@@ -21,10 +21,12 @@ def test_demo_items() -> None:
             items = await client.get("/items")
             created = await client.post("/items", json={"name": "Eraser"})
             unchanged = await client.get("/items")
+            redirect = await client.get("/redirect")
         assert health.json() == {"status": "ok"}
         assert items.json() == [{"id": 1, "name": "Notebook"}, {"id": 2, "name": "Pencil"}]
         assert created.status_code == 201
         assert created.json() == {"id": 3, "name": "Eraser"}
         assert unchanged.json() == items.json()
+        assert redirect.status_code == 302
 
     asyncio.run(check())

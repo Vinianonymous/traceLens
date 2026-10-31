@@ -33,3 +33,6 @@ jobs:
           curl --fail http://127.0.0.1:8000/api/v1/health
           curl --fail http://127.0.0.1:8001/items
           curl --fail http://127.0.0.1:5173/
+          curl --fail -X POST http://127.0.0.1:8000/api/v1/requests/send -H 'Content-Type: application/json' -d '{"method":"GET","url":"http://demo-api:8001/items"}' | grep 'Notebook'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8000/api/v1/requests/send -H 'Content-Type: application/json' -d '{"method":"GET","url":"http://example.com/items"}')" = 403
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8000/api/v1/requests/send -H 'Content-Type: application/json' -d '{"method":"GET","url":"http://demo-api:8001/redirect"}')" = 502

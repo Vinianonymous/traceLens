@@ -1,4 +1,7 @@
-# Phase 0 security boundary
+# Phase 0 security boundary (historical)
+
+This document describes the Phase 0 state. See [Phase 1](phase-1.md) for the
+current outbound-request security design.
 
 - No outbound request execution exists yet. `TRACELENS_ALLOWED_DESTINATIONS` is a
   reserved configuration value, **not** an implemented safety control. Do not
