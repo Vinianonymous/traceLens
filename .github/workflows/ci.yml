@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install locked dependencies
+        run: make install
+      - name: Lint, format, typecheck, test, build
+        run: make check
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+      - name: Smoke test local stack
+        run: |
+          trap 'docker compose down' EXIT
+          docker compose up --build -d --wait
+          curl --fail http://127.0.0.1:8000/api/v1/health
+          curl --fail http://127.0.0.1:8001/items
+          curl --fail http://127.0.0.1:5173/

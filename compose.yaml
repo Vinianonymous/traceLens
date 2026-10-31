@@ -1,0 +1,46 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      TRACELENS_DATA_DIR: /data
+      TRACELENS_ALLOWED_DESTINATIONS: ${TRACELENS_ALLOWED_DESTINATIONS:-http://demo-api:8001}
+    volumes:
+      - ${TRACELENS_DATA_DIR:-./data}:/data
+    ports:
+      - "127.0.0.1:${TRACELENS_API_PORT:-8000}:8000"
+    depends_on:
+      demo-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  demo-api:
+    build:
+      context: .
+      dockerfile: demo-api/Dockerfile
+    ports:
+      - "127.0.0.1:${TRACELENS_DEMO_PORT:-8001}:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build:
+      context: ./apps/web
+    ports:
+      - "127.0.0.1:${TRACELENS_WEB_PORT:-5173}:5173"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173/').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
