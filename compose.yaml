@@ -35,6 +35,9 @@ services:
   web:
     build:
       context: ./apps/web
+      args:
+        VITE_TRACELENS_API_PORT: ${TRACELENS_API_PORT:-8000}
+        VITE_DEMO_ORIGIN: http://demo-api:8001
     ports:
       - "127.0.0.1:${TRACELENS_WEB_PORT:-5173}:5173"
     depends_on:

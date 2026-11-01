@@ -1,4 +1,7 @@
 FROM node:22-alpine AS build
+ARG VITE_TRACELENS_API_PORT=8000
+ARG VITE_DEMO_ORIGIN=http://demo-api:8001
+ARG VITE_DEMO_ORIGIN=http://demo-api:8001
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
