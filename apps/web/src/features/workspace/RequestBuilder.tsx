@@ -36,6 +36,8 @@ type BuilderProps = {
   onStart: () => void;
   onResult: (result: SendResult) => void;
   onError: (error: SendError) => void;
+  onSave?: (request: SendRequest) => void;
+  loadRequest?: SendRequest | null;
 };
 
 function rowsToObject(rows: KeyValue[], kind: "Header" | "Query parameter") {
@@ -173,16 +175,42 @@ export default function RequestBuilder({
   onStart,
   onResult,
   onError,
+  onSave,
+  loadRequest,
 }: BuilderProps) {
-  const ids = useRef(1);
+  const ids = useRef(
+    1 +
+      Object.keys(loadRequest?.query ?? {}).length +
+      Object.keys(loadRequest?.headers ?? {}).length,
+  );
   const sending = useRef(false);
   const nextId = () => ids.current++;
-  const [method, setMethod] = useState<Method>("GET");
-  const [url, setUrl] = useState(`${DEMO_ORIGIN}/items`);
-  const [query, setQuery] = useState<KeyValue[]>([]);
-  const [headers, setHeaders] = useState<KeyValue[]>([]);
-  const [bodyMode, setBodyMode] = useState<"json" | "text">("json");
-  const [body, setBody] = useState("");
+  const [method, setMethod] = useState<Method>(loadRequest?.method ?? "GET");
+  const [url, setUrl] = useState(loadRequest?.url ?? `${DEMO_ORIGIN}/items`);
+  const [query, setQuery] = useState<KeyValue[]>(() =>
+    Object.entries(loadRequest?.query ?? {}).map(([key, value], index) => ({
+      id: index + 1,
+      key,
+      value,
+    })),
+  );
+  const [headers, setHeaders] = useState<KeyValue[]>(() =>
+    Object.entries(loadRequest?.headers ?? {}).map(([key, value], index) => ({
+      id: index + 1 + Object.keys(loadRequest?.query ?? {}).length,
+      key,
+      value,
+    })),
+  );
+  const [bodyMode, setBodyMode] = useState<"json" | "text">(() =>
+    loadRequest &&
+    Object.entries(loadRequest.headers).some(
+      ([key, value]) =>
+        key.toLowerCase() === "content-type" && value.includes("text/plain"),
+    )
+      ? "text"
+      : "json",
+  );
+  const [body, setBody] = useState(loadRequest?.body ?? "");
   const [validation, setValidation] = useState<string | null>(null);
   const mutation = useMutation({ mutationFn: sendRequest, retry: false });
 
@@ -231,6 +259,21 @@ export default function RequestBuilder({
       query: safeQuery,
       body: body || null,
     };
+  }
+
+  function save() {
+    if (sending.current || mutation.isPending || !onSave) return;
+    setValidation(null);
+    try {
+      onSave(preparePayload());
+    } catch (error) {
+      setValidation(
+        error instanceof SendError
+          ? error.message
+          : "Check your request and try again.",
+      );
+      return;
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -428,11 +471,11 @@ export default function RequestBuilder({
           <div className="flex items-center gap-3">
             <button
               type="button"
-              disabled
-              title="Saving requests arrives in Phase 3"
-              className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm text-slate-500"
+              disabled={mutation.isPending || !onSave}
+              onClick={save}
+              className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm text-slate-200 hover:border-teal-400"
             >
-              Save · later
+              Save request
             </button>
             <button
               type="submit"

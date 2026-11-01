@@ -18,6 +18,18 @@ PRIVATE_DOCKER_RANGES = tuple(
 )
 HEADER_NAME_CHARS = "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 SENSITIVE_HEADERS = {"authorization", "cookie", "set-cookie", "proxy-authorization", "x-api-key"}
+SENSITIVE_HEADER_PARTS = ("api-key", "token", "secret", "password", "credential", "session")
+
+
+def is_sensitive_header(name: str, extra: tuple[str, ...] = ()) -> bool:
+    normalized = name.lower()
+    return (
+        normalized in SENSITIVE_HEADERS
+        or normalized in (item.lower() for item in extra)
+        or any(part in normalized for part in SENSITIVE_HEADER_PARTS)
+    )
+
+
 FORBIDDEN_HEADERS = SENSITIVE_HEADERS | {
     "host",
     "connection",
@@ -108,7 +120,7 @@ class RequestService:
                 or not name
                 or any(char not in HEADER_NAME_CHARS for char in name)
                 or name.lower() in FORBIDDEN_HEADERS
-                or "api-key" in name.lower()
+                or is_sensitive_header(name, self.settings.sensitive_headers)
                 or not value.isascii()
                 or any(ord(char) < 32 or ord(char) == 127 for char in value)
             ):
@@ -180,7 +192,7 @@ class RequestService:
                     safe_headers = {
                         key: value
                         for key, value in response.headers.items()
-                        if key.lower() not in SENSITIVE_HEADERS and "api-key" not in key.lower()
+                        if not is_sensitive_header(key, self.settings.sensitive_headers)
                     }
                     return SendResult(
                         status=response.status_code,

@@ -1,10 +1,13 @@
 """Destination, pinning, redirects, failures, size limits and redaction."""
 
 import asyncio
+from tempfile import TemporaryDirectory
 
 import httpx
 import pytest
 from app.core.config import Settings
+from app.db.base import Base
+from app.db.session import create_sqlite_engine
 from app.main import create_app
 from app.schemas.requests import MAX_BODY
 from app.services.requests import RequestService, Resolver
@@ -24,12 +27,18 @@ def call(
     resolver: Resolver = local_resolver,
 ) -> httpx.Response:
     async def run() -> httpx.Response:
-        settings = Settings()
-        service = RequestService(settings, resolver=resolver, transport=handler)
-        async with AsyncClient(
-            transport=ASGITransport(app=create_app(settings, service)), base_url="http://test"
-        ) as client:
-            return await client.post("/api/v1/requests/send", json=payload)
+        with TemporaryDirectory() as directory:
+            settings = Settings(data_dir=directory)
+            engine = create_sqlite_engine(directory)
+            Base.metadata.create_all(engine)
+            service = RequestService(settings, resolver=resolver, transport=handler)
+            async with AsyncClient(
+                transport=ASGITransport(app=create_app(settings, service, engine)),
+                base_url="http://test",
+            ) as client:
+                result = await client.post("/api/v1/requests/send", json=payload)
+            engine.dispose()
+            return result
 
     return asyncio.run(run())
 
@@ -104,16 +113,23 @@ def test_docker_demo_uses_resolved_private_ip_and_preserves_host() -> None:
         return httpx.Response(200, headers={"content-type": "application/json"}, content=b"[]")
 
     async def run() -> httpx.Response:
-        settings = Settings(demo_origin="http://demo-api:8001")
-        service = RequestService(
-            settings, resolver=docker_resolver, transport=httpx.MockTransport(handler)
-        )
-        async with AsyncClient(
-            transport=ASGITransport(app=create_app(settings, service)), base_url="http://test"
-        ) as client:
-            return await client.post(
-                "/api/v1/requests/send", json={"method": "GET", "url": "http://demo-api:8001/items"}
+        with TemporaryDirectory() as directory:
+            settings = Settings(demo_origin="http://demo-api:8001", data_dir=directory)
+            engine = create_sqlite_engine(directory)
+            Base.metadata.create_all(engine)
+            service = RequestService(
+                settings, resolver=docker_resolver, transport=httpx.MockTransport(handler)
             )
+            async with AsyncClient(
+                transport=ASGITransport(app=create_app(settings, service, engine)),
+                base_url="http://test",
+            ) as client:
+                result = await client.post(
+                    "/api/v1/requests/send",
+                    json={"method": "GET", "url": "http://demo-api:8001/items"},
+                )
+            engine.dispose()
+            return result
 
     assert asyncio.run(run()).status_code == 200
     assert str(seen[0].url) == "http://172.18.0.7:8001/items"

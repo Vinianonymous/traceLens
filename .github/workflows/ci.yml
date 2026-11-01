@@ -24,6 +24,17 @@ jobs:
         run: make install
       - name: Lint, format, typecheck, test, build
         run: make check
+      - name: Install Chromium for browser smoke tests
+        run: cd apps/web && npx playwright install --with-deps chromium
+      - name: Exercise browser workflows
+        run: cd apps/web && npm run test:e2e
+      - name: Preserve failing browser traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: apps/web/test-results/
+          if-no-files-found: ignore
       - name: Validate Compose configuration
         run: docker compose config --quiet
       - name: Smoke test local stack

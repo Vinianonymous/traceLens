@@ -56,7 +56,10 @@ export default function ResponseInspector({
         "set-cookie",
         "proxy-authorization",
         "x-api-key",
-      ].includes(key.toLowerCase()) && !key.toLowerCase().includes("api-key"),
+      ].includes(key.toLowerCase()) &&
+      !["api-key", "token", "secret", "password", "credential", "session"].some(
+        (part) => key.toLowerCase().includes(part),
+      ),
   );
   const contentType = result?.headers["content-type"] ?? "Not provided";
 

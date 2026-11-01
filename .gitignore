@@ -8,5 +8,7 @@ __pycache__/
 apps/web/node_modules/
 apps/web/dist/
 apps/web/coverage/
+apps/web/test-results/
+apps/web/playwright-report/
 *.tsbuildinfo
 data/
